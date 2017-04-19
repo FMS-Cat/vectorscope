@@ -1,69 +1,62 @@
 <!DOCTYPE html>
 
 <html>
-	<head>
-		<meta charset="UTF-8">
-		<title>Vectorscope example</title>
-	</head>
-	<body>
-		<canvas id="canvas" width="512" height="512"></canvas><br />
-		<input id="input" type="file" /><br />
-		<input id="play" type="button" value="play" />
-		<input id="stop" type="button" value="stop" />
+  <head>
+    <meta charset="UTF-8">
+    <title>Vectorscope example</title>
+  </head>
+  <body>
+    <canvas id="canvas" width="512" height="512"></canvas><br />
 
-		<script src="vectorscope.js"></script>
+    <script src="vectorscope.js"></script>
     <script>
-			window.onload = function(){
+      window.onload = function(){
+        window.AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!window.AudioContext) {
+          console.log("No window.AudioContext");
+          return; // no audio available
+        }
+        navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia;
+        if (!navigator.getUserMedia) {
+          console.log("No navigator.getUserMedia");
+          return; // no audio available
+        }
 
-				var audio = new AudioContext();
+        var audio = new AudioContext();
 
-				var input = document.getElementById( 'input' );
-				var canvas = document.getElementById( 'canvas' );
+        var input = document.getElementById( 'input' );
+        var canvas = document.getElementById( 'canvas' );
 
-				// ------
+        var vectorscope = new Vectorscope( audio, canvas );
+        vectorscope.node.connect( audio.destination );
 
-				var vectorscope = new Vectorscope( audio, canvas );
-				vectorscope.node.connect( audio.destination );
+        var userMediaStream;
 
-				// ------
-
-				var buffer = null;
-				var source = null;
-
-				var stop = function() {
-					if ( source ) {
-						source.stop();
-					}
-				};
-				document.getElementById( 'stop' ).onclick = function() {
-					stop();
-				};
-
-				var play = function() {
-					if ( buffer ) {
-						source = audio.createBufferSource();
-						source.buffer = buffer;
-						source.connect( vectorscope.node );
-						source.start();
-					}
-				};
-				document.getElementById( 'play' ).onclick = function() {
-					stop();
-					play();
-				};
-
-				input.onchange = function() {
-					stop();
-					var reader = new FileReader();
-					reader.onload = function() {
-						audio.decodeAudioData( reader.result, function( _data ) {
-							buffer = _data;
-						} );
-					};
-					reader.readAsArrayBuffer( input.files[ 0 ] );
-				};
-
-			};
-		</script>
-	</body>
+        navigator.getUserMedia({
+            video:false,
+            audio:{
+              mandatory:[],
+              optional:[{ 
+                echoCancellation:false
+              }, {
+                googEchoCancellation: false,
+              }, {
+                googAutoGainControl: false,
+              }, {
+                googNoiseSuppression: false,
+              }, {
+                googHighpassFilter: false
+              },{ sampleRate:22050 /* 44100 */ }]
+            }
+          }, function(stream) {
+            var inputStream = audio.createMediaStreamSource(stream);
+            inputStream.connect(vectorscope.node);
+            input.connect(audio.destination);
+            console.log("Record start successful");
+          }, function(e) {
+            console.log('getUserMedia error', e);
+        });
+      };
+    </script>
+  </body>
 </html>
